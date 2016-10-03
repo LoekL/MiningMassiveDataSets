@@ -1849,11 +1849,209 @@ n = 10
 
 ## 3 - 10 - A-Priori Algorithm (13-07).mp4
 
-[The A-Priori Algorithm]
-
 - Monotonicity of 'Frequent' # An itemset cannot be frequent unless all its subsets are frequent
 - Candidate Pairs
 - Extension to Larger Itemsets
+
+[The A-Priori Algorithm]
+
+- A two-pass approach called a-priori limits the need for main memory.
+- Key idea: monotonicity: if a set of items appears at least s times, so does every subset of s.
+- Contrapositive for pairs: if item i does not appear in s baskets, then no pair including i can
+  appear in s baskets.
+
+- Pass 1: Read baskets and count in main memory the occurrences of each item.
+  + Requires only memory proportional to the number of items.
+- Items that appear at least s times are the frequent items.
+  + Note that you only need to count up to s, this saves memory!
+- Pass 2: Read baskets again and count in main memory only those pairs of which
+  were found in Pass 1 to be frequent.
+  + If only half the items are frequent, we only have to count ~ 1/4 of all possible pairs.
+- Requires memory proportional to square of frequent items only (for counts), plus a list
+  of the frequent items (so you know what must be counted).
+
+[Detail for A-Priori]
+
+- You can use the triangular matrix method with n = number of frequent items.
+  + May save space compared with storing triples.
+- Trick: re-number frequent items, 1, 2, ... and keep a table relating new numbers to
+  original item numbers. # To make the triangular matrix work - by recounting it is as small as possible
+
+[Frequent Triples, Etc.]
+
+- For each k, we construct two sets of k-sets (sets of size k):
+  + Ck = candidate k-sets = those that might be frequent sets (support >= s) based on
+    information from the pass for k-1.
+  + Lk = the set of truly frequent k-sets.
+
+[Passes Beyond Two] # Here we go!
+
+- C1 = all items
+- In general, Lk = members of Ck with support >= s.
+  + Requires one pass.
+- Ck+1 = (k+1)-sets, each k of which is in Lk.
+
+1 - Assume k = 3.
+2 - We might find {1, 3, 5} is in Lk (L3).
+3 - Now look at each item whose number is higher than any in the set. # You don't go down: {1, 3, 5} + 2 would be covered by {1, 2, 3} + 5!
+    + The first higher item is 6 in this case: {1, 3, 5, 6}
+4 - We already know its subset {1, 3, 5} is frequent / in L3.
+    + We have to test 3 other sets:
+      * {3, 5, 6}
+      * {1, 5, 6}
+      * {1, 3, 6}
+    + If all three of these are in L3, then {1, 3, 5, 6} would go into C4 # candidate-4
+5 - Then we continue with 7: {1, 3, 5, 7}, etc., up to 9!
+
+Memory Requirements
+
+- At the k`th pass, you need space to count each member of Ck.
+- In realistic cases, because you need fairly high support, the number of
+  candidates of each size drops, once you get beyond pairs.
+
+[Improvements to A-Priori]
+
+- Park-Chen-Yu Algorithm
+- Multistage and Multihash
+- Single-Pass Approximate Algorithms
+
+[PYC Algorithm]
+
+- During Pass 1 of A-Priori, most memory is idle.
+  + The essence of the PCY algorithm is to take advantage of the fact that when the set of
+    items is modest in size we have lots of space in memory during the first pass which we
+    do not seem to need.
+  + We can in fact do some counting that will give us a smaller candidate set of pairs that will
+    help us on the second pass where the main memory is often the critical resource since we do
+    not have to store as many counts.
+- Use that memory to keep counts of buckets into which pairs of items are hashed.
+  + JUST THE COUNT, not the pairs themselves!
+  + Therefore the space needed for a bucket is small, 4-bytes is surely sufficient.
+    * We might get away with 2-bytes if the support threshold is less than 2^16.
+- For each basket, enumerate all its pairs, hash them, and increment the resulting
+  bucket count by 1.
+  + So you do two things:
+    * Count items (item + count)
+    * Count pairs (count only)
+- A bucket is frequent if its count is at least the support threshold.
+- If a bucket is not frequent, no pair that hashes to that bucket could possibly be
+  a frequent pair.
+- On Pass 2, we only count pairs that hash to frequent buckets. # and when both items are frequent
+- The counts retrieved in Pass 1, are transformed into a bitmap, and used to cross-check
+  in Pass 2. # 1 means frequent, 0 means not frequent
+- Since we go from 4-bytes per count to 1 bit, we have a 32/1 compression! # 4 * 8 = 32
+
+[Pass 1: Memory Organization]
+
+- Space to count each item.
+  + One (typically) 4-byte integer per item.
+- Use the rest of the space for as many integers, representing buckets, as we can.
+
+[PCY Algorithm - Pass 1]
+
+FOR (each basket) {
+  FOR (each item in the basket)
+    add 1 to item`s count;
+  FOR (each pair of items) {
+    hash the pair to a bucket;
+    add 1 to the count for that bucket
+  }
+}
+
+[Observations About the Buckets]
+
+1. A bucket that a frequent pair hashes to is surely frequent.
+   + In the subsequent pass, its value in the bitmap will be 1, and we will store the count.
+   + We cannot use the hash table to eliminate any member of this bucket.
+   + Unfortunately many infrequent pairs may hash to the same bucket.
+     # e.g. s = 3 and {1, 2} & {3, 4} & {5, 6} all happen to hash to bucket 1;
+     # which is now considered frequent and its member counts will all be stored in Pass 2
+    * We hope at least one member of the pair is not a frequent item so it
+      is excluded by the other role that both i and j must be frequent.
+    * However, sometimes you will have a pair that is not frequent, but its items are, and it hashes
+      to a frequent bucket, even though it is not frequent.
+2. Even without any frequent pair, a bucket can be frequent. # e.g. 5 non-frequent pairs hash to the bucket and s = 5
+   + Again, nothing in the bucket can be eliminated.
+3. But in the best case, the count for a bucket is less than the support s.
+   + Now, all pairs that hash to this bucket can be eliminated as candidates,
+     even if the pairs consists of two frequent items.
+
+[PCY Algorithm - Between Passes]
+
+- Replace the buckets by a bit-vector (the 'bitmap'):
+  + 1 means the bucket is frequent; 0 means it is not
+- 4-byte integers are replaced by bits, so the bit-vector requires 1/32 of memory.
+- Also, decide which items are frequent and list them for the second pass.
+
+[PCY Algorithm - Pass 2]
+
+- Count all pairs {i,j} that meet the conditions for being a candidate pair:
+  1. Both i and j are frequent items. # For A-Priori this it he ONLY condition
+  2. The pair {i,j} hashes to a bucket number whose bit in the bit vector is 1.
+  # The second condition is introduced by PCY
+
+[Memory Details]
+
+- Buckets require a few bytes each.
+  + Note: we do not have to count past s.
+    * If count is less than s, increment with 1, else do nothing.
+  + Number of buckets is O(main-memory size).
+    * Its size is a reasonable fraction of main memory - typically half or a quarter.
+- On a second pass, a table of (item, item, count) triples is essential.
+  + The pairs that are exempted because they hashed to an infrequent bucket are scattered
+    all over the place and cannot be organised into a nice triangular array.
+    * Thus, the hash table must eliminate 2/3 of the candidate pairs for PCY
+      to beat A-Priori # as a triangular matrix uses 1/3 the space compared to the tabular approach
+
+[Multistage Algorithm]
+
+- Key idea: After Pass 1 of PCY, rehash only those pairs that qualify for Pass 2 of PCY.
+- On middle pass, fewer pairs contribute to buckets, so fewer false-positives - frequent
+  buckets with no frequent pairs.
+
+[Multistage - Pass 3]
+
+- Count only those pairs {i, j} that satisfy these candidate pairs conditions:
+  1. Both i and j are frequent items. # A-Priori condition
+  2. Using the first hash function, the pair hashes to a
+     bucket whose bit in the first bit-vector is 1. # PCY condition
+  3. Using the second hash function, the pair hashes to a bucket whose bit
+     in the second bit-vector is 1. # Multistage condition
+
+[Important Points]
+
+1. The hash functions have to be independent.
+# Otherwise each would report the same frequent bucket and we have no advantage
+2. We need to check both hashes on the third pass.
+   + If not, we would wind up counting pairs of frequent items
+     that hashed first to an infrequent bucket but happened to hash
+     second to a frequent bucket. # We'd lose the info of the first check!
+
+[Multihash]
+
+- Key idea: use several independent hash tables on the first pass.
+- Risk: halving the number of buckets doubles the average count. # So you have space for more hash tables
+  We have to be sure most buckets will still not reach count s.
+  # Remember that PCY works if the average bucket count is much less than support threshold s.
+  # That way many buckets are infrequent and we can eliminate many candidate pairs for the second Pass.
+- If so, we can get a benefit like multistage, but in fewer passes.
+  + Example:
+    * Say we have one table where the average count of items per bucket is s/10.
+    * If we then split the table into two half-sized hash tables, the count will become s/5.
+    * Each table will still have mostly infrequent buckets.
+    * But now you have 2 chances to eliminate a pair that is not actually frequent.
+    * In this case we get much of the benefit of a 2-stage algorithm, but we only use
+      2 passes and not 3.
+
+
+
+
+
+
+
+
+
+
 
 
 
