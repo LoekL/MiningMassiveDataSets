@@ -2030,30 +2030,100 @@ FOR (each basket) {
 [Multihash]
 
 - Key idea: use several independent hash tables on the first pass.
-- Risk: halving the number of buckets doubles the average count. # So you have space for more hash tables
+- Risk: halving the number of buckets doubles the average count. # You are OoM. E.g. 1 table with 1000 buckets, is 2 tables with 500 each, hence average count goes up.
   We have to be sure most buckets will still not reach count s.
   # Remember that PCY works if the average bucket count is much less than support threshold s.
   # That way many buckets are infrequent and we can eliminate many candidate pairs for the second Pass.
 - If so, we can get a benefit like multistage, but in fewer passes.
   + Example:
     * Say we have one table where the average count of items per bucket is s/10.
-    * If we then split the table into two half-sized hash tables, the count will become s/5.
+    * If we then split the table into two half-sized hash tables, the average count will become s/5.
     * Each table will still have mostly infrequent buckets.
     * But now you have 2 chances to eliminate a pair that is not actually frequent.
     * In this case we get much of the benefit of a 2-stage algorithm, but we only use
       2 passes and not 3.
 
+## 3 - 12 - All or Most Frequent Itemsets in 2 Passes (14-40) [Advanced]
 
+[All (or most) Frequent Itemsets In <= 2 Passes]
 
+- Simple Algorithm
+- Savasere-Omiecinski-Navathe (SON) Algorithm
+- Toivonen`s Algorithm
 
+[Simple Algorithm]
 
+- Take a random sample of the market baskets.
+- Run A-Priori or one of its improvements (for sets of all sizes, not just pairs) in main memory,
+  so you do not pay for disk I/O each time you increase the size of itemsets.
+- Use as your support threshold a suitable, scaled-back number.
+  + Example: if your sample is 1/100 of the baskets, use s/100 as your support threshold instead of s.
+- Optionally, verify that your guesses are truly frequent in the entire data set by a second pass. # Removing FPs
+  + But you do not catch sets frequent in the whole but not in the sample. # cathcing FNs
+    * To avoid FNs: use a smaller threshold, e.g. s/125 instead of s/100, which helps catch more truly frequent itemsets.
+      - But requires more space.
 
+[SON Algorithm]
 
+- Repeatedly read small subsets of the baskets into main memory and perform the first pass of the
+  simple algorithm on each subset.
+- An itemset becomes a candidate if it is found to be frequent in any one or more subsets of the baskets.
 
+[SON Algorithm - Pass 2]
 
+- On a second pass, count all the candidate itemsets and determine which are frequent in the entire set.
+- Key 'monotonicity' idea: an itemset cannot be frequent in the entire set of baskets unless it is frequent
+  in at least one subset.
 
+[SON Algorithm - Distributed Version]
 
+- This idea lends itself to distributed data mining.
+- If baskets are distributed among many nodes, compute local frequent itemsets at each node,
+  then distribute the candidates from each node (so all nodes have an exhaustive list of all candidates).
+- Each node then counts all the candidate itemsets for their respective baskets.
+- Finally, accumulate the counts of all candidates in a reduce tasks.
 
+[Toivonens Algorithm]
 
+- Start as in the simple algorithm, but lower the threshold slightly for the sample.
+  + Example: if the sample is 1% of the baskets, use s/125 as the support threshold rather than s/100.
+  + Goal is to avoid missing any itemset that is frequent in the full set of baskets.
+- Add to the itemsets that are frequent in the sample the negative border of these itemsets.
+- An itemset is in the negative border if it is not deemed frequent in the sample, but all its
+  immediate subsets are.
+  + None of these should be frequent in the whole set, since we chose a support threshold that is
+    significantly lower (s/125) than the actual threshold (s/100).
+  + But if one or more of the item sets in the negative border turn out to be frequent in the whole,
+    then we have to believe that the sample was not representative and we need to repeat the entire process.
+  + This is why there is no limit to how many passes Toivonens algorithm may need to produce an answer.
 
+[Example: Negative Border]
 
+- {A, B, C, D} is in the negative border if and only if:
+  1. It is not frequent in the sample, but
+  2. all of its immediate subsets: {A,B,C}, {B,C,D}, {A,C,D} and {A,B,D} are (frequent).
+- {A} is in the negative border if and only if it is not frequent in the sample.
+  + Because the empty set is always frequent. # Which is the subset of {A}
+    * Unless there are fewer baskets than the support threshold (silly case).
+- In a second pass, count all candidate frequent itemsets from the first pass, and also count the sets
+  that comprise their negative border.
+- If no itemset from the negative border turns out to be frequent, then the candidates found to be
+  frequent in the whole data are exactly the frequent itemsets.
+- What if we find that something in the negative border is actuallyl frequent?
+  + We must start over with another sample!
+- Try to choose the support threshold so the probability of failure is low, while the number of
+  itemsets checked on the second pass fits in main-memory.
+
+[Theorem]
+
+- If there is an itemset that is frequent in the whole, but not in the sample, then there is a member
+  of the negative border for the sample that is frequent in the whole.
+
+[Proof]
+
+- Suppose not; i.e.;
+  1. There is an itemset S frequent in the whole but not frequent in the sample, and
+  2. Nothing in the negative border is frequent in the whole.
+- Let T be a smallest subset of S that is not frequent in the sample.
+- T is frequent in the whole (S is frequent + monotonicity).
+- T is in the negative border (else not 'smallest').
