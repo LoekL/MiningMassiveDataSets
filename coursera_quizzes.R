@@ -271,3 +271,223 @@ LNorm(2, point2, option1)
 ### Week 2 - Quiz 2
 
 ## Q1
+# Suppose we have transactions that satisfy the following assumptions:
+# - s, the support threshold, is 10,000.
+# - There are one million items, which are represented by the integers 0,1,...,999999.
+# - There are N frequent items, that is, items that occur 10,000 times or more.
+# - There are one million pairs that occur 10,000 times or more.
+# - There are 2M pairs that occur exactly once. M of these pairs consist of two frequent items, the other M each have at least one nonfrequent item.
+# - No other pairs occur at all.
+# - Integers are always represented by 4 bytes.
+#
+# Suppose we run the a-priori algorithm to find frequent pairs and can choose on the second pass between the triangular-matrix method 
+# for counting candidate pairs (a triangular array count[i][j] that holds an integer count for each pair of items (i, j) where i < j) 
+# and a hash table of item-item-count triples. Neglect in the first case the space needed to translate between original item numbers 
+# and numbers for the frequent items, and in the second case neglect the space needed for the hash table. Assume that item numbers and counts are always 4-byte integers.
+# As a function of N and M, what is the minimum number of bytes of main memory needed to execute the a-priori algorithm on this data? 
+# Demonstrate that you have the correct formula by selecting, from the choices below, the triple consisting of values for N, M, and the 
+# (approximate, i.e., to within 10%) minumum number of bytes of main memory, S, needed for the a-priori algorithm to execute with this data.
+
+s <- 10000
+items <- 0:999999
+
+# Triangular Matrix Approach
+
+N1 <- 10000
+N2 <- 20000
+N3 <- 30000
+
+triangularBytes <- function(N) {
+  possiblePairs <- (N * (N - 1)) / 2
+  bytes <- possiblePairs * 4
+  return(bytes)
+}
+
+R1 <- triangularBytes(N1) # 199980000 ~ 199M bytes
+R2 <- triangularBytes(N2) # 799960000 ~ 799M bytes
+R3 <- triangularBytes(N3) # 1799940000 ~ 1.8B bytes
+
+# Triples Approach
+
+M1 <- 50000000
+M2 <- 60000000
+M3 <- 100000000
+M4 <- 200000000
+
+# 1 milion pairs that are frequent
+# 2M pairs that occur exactly once, 1M of these pairs have 2 freq items. other M at least one nonfreq.
+
+tripleBytes <- function(M) {
+  frequentPairs <- 1000000 # pairs whose items are both frequent and are frequent itself
+  nonFrequentPairs <- M # pairs whose items are both frequent, yet are not frequent itself
+  totalCounts <- frequentPairs + nonFrequentPairs
+  bytes <- totalCounts * 3 * 4 # we need to store 3 integers of each 4 bytes
+  return(bytes)
+}
+
+T1 <- tripleBytes(M1) # ~ 612M bytes
+T2 <- tripleBytes(M2) # ~ 732M bytes
+T3 <- tripleBytes(M3) # ~ 1.2B bytes
+T4 <- tripleBytes(M4) # ~ 2.4B bytes
+
+# A: N = 30,000; M = 200,000,000; S = 1,800,000,000
+
+## Q2
+# Imagine there are 100 baskets, numbered 1,2,...,100, and 100 items, similarly numbered. 
+# Item i is in basket j if and only if i divides j evenly. 
+# For example, basket 24 is the set of items {1,2,3,4,6,8,12,24}. 
+# Describe all the association rules that have 100% confidence. Which of the following rules has 100% confidence?
+
+items <- 1:100
+numBaskets <- 1:100
+baskets <- list()
+for (i in numBaskets) { baskets[[i]] <- c(0) }
+
+for (i in numBaskets) {
+  x <- 1
+  for (j in items) {
+    if (i %% j == 0) {
+      baskets[[i]][x] <- j 
+      x <- x + 1
+    }
+  }
+}
+
+# 100% Confidence is achieved when the superset is as frequent as its subset.
+# Example: {1, 2, 3} --> 4
+# - If there is a 100% confidence, {1, 2, 3} goes together with {4}.
+# - Hence {1, 2, 3} will be exactly as frequent as {1, 2, 3, 4}.
+
+s1 <- c(4, 10, 12)
+s2 <- c(2, 4)
+s3 <- c(1)
+s4 <- c(1, 4, 7)
+
+a1 <- c(80)
+a2 <- c(8)
+a3 <- c(2)
+a4 <- c(14)
+
+frequency <- function(x, baskets) {
+  size <- length(x)
+  count <- 0
+  for (i in 1:length(baskets)) {
+    if (sum(x %in% baskets[[i]]) == size) {
+      count <- count + 1
+    }
+  }
+  return(count)
+}
+
+# Option 1
+freqS1 <- frequency(s1, baskets) # 1
+freqS1A1 <- frequency(c(s1, a1), baskets) # 0
+freqS1 == freqS1A1 # FALSE
+
+# Option 2
+freqS2 <- frequency(s2, baskets) # 25
+freqS2A2 <- frequency(c(s2, a2), baskets) # 12
+freqS2 == freqS2A2 # FALSE
+
+# Option 3
+freqS3 <- frequency(s3, baskets) # 100
+freqS3A3 <- frequency(c(s3, a3), baskets) # 50
+freqS3 == freqS3A3 # FALSE
+
+# Option 4
+freqS4 <- frequency(s4, baskets) # 3
+freqS4A4 <- frequency(c(s4, a4), baskets) # 12
+freqS4 == freqS4A4 # TRUE
+
+# A: Option 4
+
+## Q3
+# Suppose ABC is a frequent itemset and BCDE is NOT a frequent itemset. 
+# Given this information, we can be sure that certain other itemsets are frequent 
+# and sure that certain itemsets are NOT frequent. Other itemsets may be either frequent 
+# or not. Which of the following is a correct classification of an itemset?
+
+# A:
+# 1 - CDE is not frequent.
+#     + FALSE: Even though BCDE is not frequent, that does not mean a subset cannot be.
+# 2 - BCD can be either frequent or not frequent. 
+#     + TRUE: Even though BCDE is not frequent, it could be in the negative border, meaning BCD could still be frequent.
+#             It could also simply not be frequent.
+# 3 - ABCDEF can be either frequent or not frequent.
+#     + FALSE: BCDE is a subset of ABCDEF and is NOT frequent. Therefore ABCDEF cannot be frequent.  
+# 4 - AB can be either frequent or not frequent.
+#     + FALSE: Since ABC is frequent, all its subsets must also be frequent.
+
+### Week 2 - Quiz 3
+
+## Q1
+# Suppose we perform the PCY algorithm to find frequent pairs, 
+# with market-basket data meeting the following specifications:
+#
+# - s, the support threshold, is 10,000.
+# - There are one million items, which are represented by the integers 0,1,...,999999.
+# - There are 250,000 frequent items, that is, items that occur 10,000 times or more.
+# - There are one million pairs that occur 10,000 times or more.
+# - There are P pairs that occur exactly once and consist of 2 frequent items.
+# - No other pairs occur at all.
+# - Integers are always represented by 4 bytes.
+#
+# When we hash pairs, they distribute among buckets randomly, but as evenly as possible; 
+# i.e., you may assume that each bucket gets exactly its fair share of the P pairs that occur once.
+# Suppose there are S bytes of main memory. In order to run the PCY algorithm successfully, 
+# the number of buckets must be sufficiently large that most buckets are not large. 
+# In addition, on the second pass, there must be enough room to count all the candidate pairs. 
+# As a function of S, what is the largest value of P for which we can successfully run the PCY algorithm on this data? 
+# Demonstrate that you have the correct formula by indicating which of the following is a value for 
+# S and a value for P that is approximately (i.e., to within 10%) the largest possible value of P for that S.
+
+# Pass 1
+
+S <- S4
+P <- P4
+
+delta <- function(s, p) {
+  
+  numFreqItems <- 250000
+  numFreqPairs <- 1000000
+  numBuckets <- (s - (numFreqItems * 4 * 2)) / 4 # 4-bytes per bucket | largest possible number of buckets we can maintain
+  
+  # Pass 1
+  SP1 <- (numFreqItems * (4 * 2)) + # Item count
+    (numBuckets * 4) # Hash table with max number of buckets
+  
+  # Pass 2
+  SP2 <- (numFreqItems * 4) + # Frequent items (no longer counts, hence not * 2)
+    (numBuckets / 8) + # bitmap
+    (((numFreqPairs * p / numBuckets) + 1) * (4 * 3))
+  
+  print(paste0("Memory Usage Pass 1: ", as.character(round(SP1 / 1000000, digits = 0)), "M Bytes"))
+  print(paste0("Memory Usage Pass 2: ", as.character(round(SP2 / 1000000, digits = 0)), "M Bytes"))
+  
+  delta1 <- s - SP1 # This one should always be near 0
+  delta2 <- s - SP2 # This one can vary
+  
+  # Large negative numbers mean OoM!
+  print(paste0("Memory Left during Pass 1: ", as.character(round(delta1 / 1000000, digits = 0)), "M Bytes"))
+  print(paste0("Memory Left during Pass 2: ", as.character(round(delta2 / 1000000, digits = 0)), "M Bytes"))
+  
+}
+
+# A:
+option1 <- delta(100000000, 120000000)
+option2 <- delta(300000000, 3500000000)
+option3 <- delta(1000000000, 10000000000)
+option4 <- delta(200000000, 800000000) # Closest
+
+## Q2
+# During a run of Toivonen's Algorithm with set of items {A,B,C,D,E,F,G,H} a sample is found to 
+# have the following maximal frequent itemsets: {A,B}, {A,C}, {A,D}, {B,C}, {E}, {F}. 
+# Compute the negative border. Then, identify in the list below the set that is NOT in the negative border.
+
+# {H} - {H} is not frequent, yet it's subset {} (empty set) is, hence {H} is in the negative border | FALSE
+# {A,B,D} - {A,B,D} is not frequent, two of its subsets are frequent: {A,B} & {A,D} but not {B,D} hence it is NOT in the negative border | TRUE 
+# {B,E} - {B,E} is not frequent, yet {E} is frequent as is {B} ({B,E} is frequent, monotonicity dicatates that singleton {B} must then be frequent as well)
+#         therefore {B,E} must be in the negative border | FALSE
+# {D,F} - Similar as above, singleton {F} is frequent, {D} as well because of {A,D} being frequent, hence {D,F} is in the negative border | FALSE
+
+# A: {A,B,D} is not in the negative border.

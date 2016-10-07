@@ -455,7 +455,7 @@ countGenerator <- function(sourceTable, candidateSets, relevantInts, subsets) {
   for (i in 1:length(sourceTable)) {
     basket <- sourceTable[[i]]
     basket <- basket[basket %in% relevantInts]
-    if (length(basket) > 3) {
+    if (length(basket) > subsets) {
       combinations <- t(combn(basket, subsets))
       for (j in 1:dim(combinations)[1]) {
         candidate <- as.data.frame(t(combinations[j,]))
@@ -486,7 +486,7 @@ candidateGenerator <- function(frequentTable) {
   return(possibleSets)
 }
 
-# A-Priori - Pass 1
+# 1) A-Priori - Pass 1
 # Generating frequent integers
 
 integers <- c()
@@ -501,7 +501,7 @@ index <- intArray >= 5
 freqItemTable <- c(rep(0, 100))
 freqItemTable[index] <- x[intArray >= 5]
 
-# A-Priori - Pass 2
+# 2) A-Priori - Pass 2
 # Generating frequent pairs
 
 masterSet <- matrix(nrow = 1, ncol = 2)
@@ -520,36 +520,55 @@ df <- count(df, vars=c('V1','V2'))
 df <- df[(complete.cases(df) == TRUE),]
 dfFrequent <- df[(df$freq >= 5),]
 
-# Checking which of possible triples are candidates (only those were all sub-sets are frequent):
+# 3.1) Checking which of possible triples are candidates (only those were all sub-sets are frequent):
 
 candidateTriples <- candidateGenerator(dfFrequent)
 candidateTriples <- candidateTriples[(candidateTriples$candidate == 1), 1:3]
 
-# Making another pass through the data, collecting counts of candidate triples:
+# 3.2) Making another pass through the data, collecting counts of candidate triples:
 
 candidateTriples$count <- 0
 tripleInts <- unique(unlist(candidateTriples[,1:3]))
 candidateTriples <- countGenerator(baskets, candidateTriples, tripleInts, 3)
 frequentTriples <- candidateTriples[(candidateTriples$count >= 5),]
 
-# Checking which of possible quadruples are candidates (only those were all sub-sets are frequent):
+# 4.1) Checking which of possible quadruples are candidates (only those were all sub-sets are frequent):
 
 candidateQuadruples <- candidateGenerator(frequentTriples)
 candidateQuadruples <- candidateQuadruples[(candidateQuadruples$candidate == 1), 1:4]
 
-# Making another pass through the data, collecting counts of candidate quadruples:
+# 4.2) Making another pass through the data, collecting counts of candidate quadruples:
 
 candidateQuadruples$count <- 0
 quadrupleInts <- unique(unlist(candidateQuadruples[,1:4]))
 candidateQuadruples <- countGenerator(baskets, candidateQuadruples, quadrupleInts, 4)
 frequentQuadruples <- candidateQuadruples[(candidateQuadruples$count >= 5),]
 
-# Generating all possible quintuples:
+# 5.1) Generating all possible quintuples:
 
 candidateQuintuples <- candidateGenerator(frequentQuadruples)
 candidateQuintuples <- candidateQuintuples[(candidateQuintuples$candidate == 1), 1:5]
 
-# Etc.
+# 5.2) Making another pass through the data, collecting counts of candidate quintuples:
+
+candidateQuintuples$count <- 0
+quintupleInts <- unique(unlist(candidateQuintuples[,1:5]))
+candidateQuintuples <- countGenerator(baskets, candidateQuintuples, quintupleInts, 5)
+frequentQuintuples <- candidateQuintuples[(candidateQuintuples$count >= 5),]
+
+# 6.1) Generating all possible sextuples:
+
+candidateSextuples <- candidateGenerator(frequentQuintuples)
+candidateSextuples <- candidateSextuples[(candidateSextuples$candidate == 1), 1:6]
+
+# 6.2) Making another pass through the data, collecting counts of candidate sextuples:
+
+candidateSextuples$count <- 0
+quintupleInts <- unique(unlist(candidateSextuples[,1:6]))
+candidateSextuples <- countGenerator(baskets, candidateSextuples, quintupleInts, 6)
+frequentSextuples <- candidateSextuples[(candidateSextuples$count >= 5),]
+
+# None of the candidate sextuples are frequent!
 
 # b) Exercise 6.1.3.
 
