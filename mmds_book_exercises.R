@@ -573,3 +573,49 @@ frequentSextuples <- candidateSextuples[(candidateSextuples$count >= 5),]
 # b) Exercise 6.1.3.
 
 # Same as 6.1.2 but swap baskets with baskets2.
+
+## 6.2.7
+# Suppose we have market baskets that satisfy the following assumptions:
+#
+# 1. The support threshold is 10,000.
+# 2. There are one million items, represented by the integers 0, 1, . . . , 999999.
+# 3. There are N frequent items, that is, items that occur 10,000 times or more.
+# 4. There are one million pairs that occur 10,000 times or more.
+# 5. There are 2M pairs that occur exactly once. Of these pairs, M consist of
+#    two frequent items; the other M each have at least one nonfrequent item.
+# 6. No other pairs occur at all.
+# 7. Integers are always represented by 4 bytes.
+#
+# Suppose we run the A-Priori Algorithm and can choose on the second pass
+# between the triangular-matrix method for counting candidate pairs and a hash
+# table of item-item-count triples. Neglect in the first case the space needed to
+# translate between original item numbers and numbers for the frequent items,
+# and in the second case neglect the space needed for the hash table. As a function
+# of N and M, what is the minimum number of bytes of main memory needed to
+# execute the A-Priori Algorithm on this data?
+
+# Case 1 - Triangular Matrix
+# Neglect: Item names to integers
+
+triangularBytes <- function(N) {
+  freqItemsBytes <- N * 4 # not counts, only items (!= * 2)
+  triangularArraySize <- (N * (N - 1)) / 2
+  triangularArrayBytes <- triangularArraySize * 4
+  bytes <- freqItemsBytes + triangularArrayBytes
+  return(bytes)
+}
+
+# Case 2 - Triples Method
+# Neglect: hash table (Bitmap)
+
+tripleBytes <- function(M) {
+  freqItemsBytes <- N * 4 # not counts, only items (!= * 2)
+  frequentPairs <- 1000000 # pairs whose items are both frequent and are frequent itself
+  nonFrequentPairs <- M # pairs whose items are both frequent, yet are not frequent itself
+  totalCounts <- frequentPairs + nonFrequentPairs
+  bytes <- (totalCounts * 3 * 4) + freqItemsBytes # we need to store 3 integers of each 4 bytes
+  return(bytes)
+}
+
+# Note: I am not sure if we do not also need to neglect "Item names to integers" for Case 2 (which I do).
+

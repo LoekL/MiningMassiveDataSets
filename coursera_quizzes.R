@@ -314,9 +314,6 @@ M2 <- 60000000
 M3 <- 100000000
 M4 <- 200000000
 
-# 1 milion pairs that are frequent
-# 2M pairs that occur exactly once, 1M of these pairs have 2 freq items. other M at least one nonfreq.
-
 tripleBytes <- function(M) {
   frequentPairs <- 1000000 # pairs whose items are both frequent and are frequent itself
   nonFrequentPairs <- M # pairs whose items are both frequent, yet are not frequent itself
@@ -396,7 +393,7 @@ freqS3 == freqS3A3 # FALSE
 
 # Option 4
 freqS4 <- frequency(s4, baskets) # 3
-freqS4A4 <- frequency(c(s4, a4), baskets) # 12
+freqS4A4 <- frequency(c(s4, a4), baskets) # 3
 freqS4 == freqS4A4 # TRUE
 
 # A: Option 4
@@ -442,9 +439,6 @@ freqS4 == freqS4A4 # TRUE
 # S and a value for P that is approximately (i.e., to within 10%) the largest possible value of P for that S.
 
 # Pass 1
-
-S <- S4
-P <- P4
 
 delta <- function(s, p) {
   
