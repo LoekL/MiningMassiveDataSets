@@ -788,7 +788,7 @@ for (basket in baskets) {
 # PCY - Between Passes
 
 frequentItems <- items[itemsCount >= s] # all of them are frequent
-bitmap1 <- (buckets >= s) * 1
+bitmap <- (buckets >= s) * 1
 
 # Multistage - Pass 2
 
@@ -813,6 +813,8 @@ for (basket in baskets) {
     }
   }
 }
+
+bitmap2 <- (buckets2 >= s) * 1
 
 sum(buckets) # 36
 sum(buckets2) # 22 
@@ -855,6 +857,9 @@ for (basket in baskets) {
     bucketsB[bucketB] <- bucketsB[bucketB] + 1
   }
 }
+
+bitmapA <- (bucketsA >= s) * 1
+bitmapB <- (bucketsB >= s) * 1
 
 # Counts of the buckets:
 bucketsA # 2 14 6 0 0 | sum == 22
