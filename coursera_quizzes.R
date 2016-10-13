@@ -438,8 +438,6 @@ freqS4 == freqS4A4 # TRUE
 # Demonstrate that you have the correct formula by indicating which of the following is a value for 
 # S and a value for P that is approximately (i.e., to within 10%) the largest possible value of P for that S.
 
-# Pass 1
-
 delta <- function(s, p) {
   
   numFreqItems <- 250000

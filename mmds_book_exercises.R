@@ -619,3 +619,277 @@ tripleBytes <- function(M) {
 
 # Note: I am not sure if we do not also need to neglect "Item names to integers" for Case 2 (which I do).
 
+### Exercise 6.3.1
+# Here is a collection of twelve baskets. Each contains three of the six items 1 through 6.
+
+b1 <- c(1,2,3); b2 <- c(2,3,4); b3 <- c(3,4,5); b4 <- c(4,5,6)
+b5 <- c(1,3,5); b6 <- c(2,4,6); b7 <- c(1,3,4); b8 <- c(2,4,5)
+b9 <- c(3,5,6); b10 <- c(1,2,4); b11 <- c(2,3,5); b12 <- c(3,4,6)
+
+baskets <- list(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12)
+rm(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12)
+
+# Suppose the support threshold is 4. On the first pass of the PCY Algorithm
+# we use a hash table with 11 buckets, and the set {i, j} is hashed to bucket i * j mod 11.
+
+# a) By any method, compute the support for each item and each pair of items.
+
+s <- 4 # support threshold
+items <- 1:6
+itemsCount <- vector(length = 6)
+buckets <- vector(length = 11)
+
+# PCY - Pass 1
+
+for (basket in baskets) {
+  
+  # This loop counts all the items
+  for (item in basket) {
+    itemsCount[item] <- itemsCount[item] + 1
+  }
+  
+  pairs <- t(combn(basket, 2))
+  
+  # This loop hashes the pairs into buckets
+  for (x in 1:dim(pairs)[1]) {
+    i <- pairs[x,1]
+    j <- pairs[x,2]
+    bucket <- (i * j) %% 11
+    buckets[bucket] <- buckets[bucket] + 1
+  }
+}
+
+# PCY - Between Passes
+
+frequentItems <- items[itemsCount >= s] # all of them are frequent
+bitmap <- (buckets >= s) * 1
+
+# PCY - Pass 2
+
+countedPairs <- data.frame(x = 0, y = 0, count = 0)
+
+for (basket in baskets) {
+  
+  # Only looking at items that are frequent
+  basket <- basket[basket %in% frequentItems]
+  
+  pairs <- t(combn(basket, 2))
+  
+  for (z in 1:dim(pairs)[1]) {
+    i <- pairs[z,1]
+    j <- pairs[z,2]
+    bucket <- (i * j) %% 11
+    
+    # Only keeping counts if the pair hashes to a frequent bucket
+    if (bitmap[bucket] == 1) {
+      
+      # Using the triples method to store counts  
+      if (dim(countedPairs[(countedPairs$x == i & countedPairs$y == j),])[1] == 0) {
+        countedPairs <- rbind(countedPairs, c(i,j,1))
+      } else {
+        countedPairs[(countedPairs$x == i & countedPairs$y == j), 3] <- 
+          countedPairs[(countedPairs$x == i & countedPairs$y == j), 3] + 1
+      }
+    } 
+  }
+}
+
+countedPairs <- countedPairs[2:dim(countedPairs)[1],]
+
+# Final Results
+
+frequentPairs <- countedPairs[(countedPairs$count >= s),] # 2-4, 3-4, 3-5
+
+# b) Which pairs hash to which buckets?
+
+bucketList <- list()
+
+for (i in 1:11) {
+  bucketList[[i]] <- c(i)
+}
+
+for (basket in baskets) {
+  
+  pairs <- t(combn(basket, 2))
+  
+  # This loop hashes the pairs into buckets
+  for (x in 1:dim(pairs)[1]) {
+    i <- pairs[x,1]
+    j <- pairs[x,2]
+    bucket <- (i * j) %% 11
+    bucketList[[bucket]] <- c(bucketList[[bucket]], c(i,j))
+  }
+}
+
+bucketPairs <- function(vec) {
+  bucketNum <- vec[1]
+  pairs <- vec[-1]
+  pairsStr <- vector(length = length(pairs)/2)
+  count <- 1
+  
+  if (length(pairs) > 1) {
+    for (x in seq(1, length(pairs), 2)) {
+      i <- pairs[x]
+      j <- pairs[x+1]
+      pairsStr[count] <- paste0(as.character(i), '-', as.character(j))
+      count <- count + 1
+    }
+    writeLines(paste0("Bucket: ", as.character(bucketNum)))
+    writeLines(unique(pairsStr))
+  }
+}
+
+for (i in bucketList) {
+  bucketPairs(i)
+}
+
+# c) Which buckets are frequent?
+
+numBuckets <- 1:11
+numBuckets[buckets > s] # 1, 2, 4, 8
+
+# d) Which pairs are counted on the second pass of the PCY Algorithm?
+
+countedPairs # 1-2, 2-4, 3-4, 3-5, 4-6, 5-6, 2-6, 1-4
+
+## Exercise 6.3.2
+# Suppose we run the Multistage Algorithm on the data of Exercise 6.3.1, with the same support 
+# threshold of 4. The first pass is the same as in that exercise, and for the second pass, 
+# we hash pairs to nine buckets, using the hash function that hashes {i, j} to bucket i + j mod 9. 
+# Determine the counts of the buckets on the second pass. Does the second pass reduce the
+# set of candidate pairs? Note that all items are frequent, so the only reason a
+# pair would not be hashed on the second pass is if it hashed to an infrequent bucket on the first pass.
+
+s <- 4 # support threshold
+items <- 1:6
+itemsCount <- vector(length = 6)
+buckets <- vector(length = 11)
+
+# Multistage - Pass 1
+
+for (basket in baskets) {
+  
+  # This loop counts all the items
+  for (item in basket) {
+    itemsCount[item] <- itemsCount[item] + 1
+  }
+  
+  pairs <- t(combn(basket, 2))
+  
+  # This loop hashes the pairs into buckets
+  for (x in 1:dim(pairs)[1]) {
+    i <- pairs[x,1]
+    j <- pairs[x,2]
+    bucket <- (i * j) %% 11
+    buckets[bucket] <- buckets[bucket] + 1
+  }
+}
+
+# PCY - Between Passes
+
+frequentItems <- items[itemsCount >= s] # all of them are frequent
+bitmap1 <- (buckets >= s) * 1
+
+# Multistage - Pass 2
+
+buckets2 <- vector(length = 9)
+
+for (basket in baskets) {
+  
+  # Only looking at items that are frequent
+  basket <- basket[basket %in% frequentItems]
+  
+  pairs <- t(combn(basket, 2))
+  
+  for (z in 1:dim(pairs)[1]) {
+    i <- pairs[z,1]
+    j <- pairs[z,2]
+    bucket <- (i * j) %% 11
+    
+    # Only re-hashing pairs that hashed to a frequent bucket in Pass 1
+    if (bitmap[bucket] == 1) {
+      bucket2 <- (i * j) %% 9
+      buckets2[bucket2] <- buckets2[bucket2] + 1
+    }
+  }
+}
+
+sum(buckets) # 36
+sum(buckets2) # 22 
+
+# A: Yes it does, by 14.
+
+## Exercise 6.3.3
+# Suppose we run the Multihash Algorithm on the data of Exercise 6.3.1. 
+# We shall use two hash tables with five buckets each. For one, the set {i, j}, is hashed to bucket 2i+3j+4 mod 5, 
+# and for the other, the set is hashed to i+4j mod 5. Since these hash functions are not symmetric in i and j, 
+# order the items so that i < j when evaluating each hash function. Determine the counts of each of the 10 buckets. 
+# How large does the support threshold have to be for the Multistage Algorithm to eliminate more pairs than the PCY
+# Algorithm would, using the hash table and function described in Exercise 6.3.1?
+# Personal Note: I assume they mean Multihash in l827
+
+# Multihash - Pass 1
+
+# s <- 4 # support threshold
+items <- 1:6
+itemsCount <- vector(length = 6)
+bucketsA <- vector(length = 5)
+bucketsB <- vector(length = 5)
+
+for (basket in baskets) {
+  
+  # This loop counts all the items
+  for (item in basket) {
+    itemsCount[item] <- itemsCount[item] + 1
+  }
+  
+  # Pairs are automatically generated so that i < j
+  pairs <- t(combn(basket, 2))
+  
+  for (z in 1:dim(pairs)[1]) {
+    i <- pairs[z,1]
+    j <- pairs[z,2]
+    bucketA <- (2*i + 3*j + 4) %% 5
+    bucketB <- (i + 4*j) %% 5
+    bucketsA[bucketA] <- bucketsA[bucketA] + 1
+    bucketsB[bucketB] <- bucketsB[bucketB] + 1
+  }
+}
+
+# Counts of the buckets:
+bucketsA # 2 14 6 0 0 | sum == 22
+bucketsB # 2 6 14 14 0 | sum == 36
+
+# PCY had 22 pairs hashed into buckets with a support threshold of 4.
+# If we want to eliminate more pairs, we should remain with fewer pairs. 
+# If we set s <- 3, we will for sure have fewer pairs:
+
+sum(bucketsA[bucketsA >= 3]) # 20 <-- upper limit
+sum(bucketsB[bucketsB >= 3]) # 34
+
+# bucketsA will let max 20 pairs through, which can only be when all pairs that hash into a 
+# frequent bucket in bucketsA also always hashes into a frequent bucket in bucketsB. This is however unlikely: 
+# in several cases a pair that hashes to a frequent bucket in bucketsA will hash into an infrequent bucket in bucketsB.
+# Therefore it is likely we end up with less than 20. We could also do the exercise and simply check how many candidate pairs
+# both algorithms ultimately generate, for varying levels of s.
+
+## 6.3.4
+# Suppose we perform the PCY algorithm to find frequent pairs, 
+# with market-basket data meeting the following specifications:
+#
+# - s, the support threshold, is 10,000.
+# - There are one million items, which are represented by the integers 0,1,...,999999.
+# - There are 250,000 frequent items, that is, items that occur 10,000 times or more.
+# - There are one million pairs that occur 10,000 times or more.
+# - There are P pairs that occur exactly once and consist of 2 frequent items.
+# - No other pairs occur at all.
+# - Integers are always represented by 4 bytes.
+#
+# When we hash pairs, they distribute among buckets randomly, but as evenly as possible; 
+# i.e., you may assume that each bucket gets exactly its fair share of the P pairs that occur once.
+# Suppose there are S bytes of main memory. In order to run the PCY algorithm successfully, 
+# the number of buckets must be sufficiently large that most buckets are not large. 
+# In addition, on the second pass, there must be enough room to count all the candidate pairs. 
+# As a function of S, what is the largest value of P for which we can successfully run the PCY algorithm on this data? 
+
+NA
