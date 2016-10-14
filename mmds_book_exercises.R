@@ -878,7 +878,7 @@ sum(bucketsB[bucketsB >= 3]) # 34
 # Therefore it is likely we end up with less than 20. We could also do the exercise and simply check how many candidate pairs
 # both algorithms ultimately generate, for varying levels of s.
 
-## 6.3.4
+## ! 6.3.4
 # Suppose we perform the PCY algorithm to find frequent pairs, 
 # with market-basket data meeting the following specifications:
 #
@@ -896,5 +896,138 @@ sum(bucketsB[bucketsB >= 3]) # 34
 # the number of buckets must be sufficiently large that most buckets are not large. 
 # In addition, on the second pass, there must be enough room to count all the candidate pairs. 
 # As a function of S, what is the largest value of P for which we can successfully run the PCY algorithm on this data? 
+
+NA
+
+## ! Exercise 6.3.5
+# Under the assumptions given in Exercise 6.3.4, will the Multihash
+# Algorithm reduce the main-memory requirements for the second pass?
+# As a function of S and P, what is the optimum number of hash tables to use on the first pass?
+
+NA
+
+## ! Exercise 6.3.6
+# Suppose we perform the 3-pass Multistage Algorithm to find frequent pairs, with market-basket 
+# data meeting the following specifications:
+# 
+# 1. The support threshold is 10,000.
+# 2. There are one million items, represented by the integers 0, 1, . . . , 999999.
+#    All items are frequent; that is, they occur at least 10,000 times.
+# 3. There are one million pairs that occur 10,000 times or more.
+# 4. There are P pairs that occur exactly once.
+# 5. No other pairs occur at all.
+# 6. Integers are always represented by 4 bytes.
+# 7. When we hash pairs, they distribute among buckets randomly, but as
+# evenly as possible; i.e., you may assume that each bucket gets exactly its
+# fair share of the P pairs that occur once.
+# 8. The hash functions used on the first two passes are completely independent.
+# 
+# Suppose there are S bytes of main memory. As a function of S and P, what
+# is the expected number of candidate pairs on the third pass of the Multistage Algorithm?
+
+NA
+
+## Exercise 6.4.1
+# Suppose there are eight items, A, B, .., H, and the following
+# are the maximal frequent itemsets: {A,B}, {B,C}, {A,C}, {A,D}, {E}, and
+# {F}. Find the negative border.
+
+freqItemSets <- list(c('A','B'), c('B','C'), c('A','C'), c('A','D'), c('E'))
+itemsChr <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H')
+
+# 1 - Items that are not present in any of the maximal frequent itemsets are in the negative border (because their subsets [the empty set {}] are frequent).
+
+freqItems <- unique(unlist(freqItemSets))
+negBorderItems <- itemsChr[!itemsChr %in% freqItems]
+
+# 2 - Get all possible pairs of frequent items, if they are not in the maximal frequent itemsets, they are in the negative border.
+
+pairs <- t(combn(freqItems, 2))
+pairs <- cbind(pairs, 1)
+
+for (i in 1:dim(pairs)[1]) {
+  vector <- c(pairs[i,1], pairs[i,2])
+  for (j in freqItemSets) {
+    logical <- vector == j
+    if (sum(logical) == 2) {
+      pairs[i,3] <- '0'
+    }
+  }
+}
+
+negBorderPairs <- pairs[(pairs[,3] == 1), 1:2]
+
+# 3 - Get all possible triples of items that are in a frequent pair, if all sub-pairs are frequent they are in the negative border.
+#     - Because there are no triples among the maximal frequent itemsets, if we find any they must be part of the negative border.
+
+# 3.1) Generating candidate triples (all subsets must be frequent, hence the items use to expand pairs to triples must be too)
+
+# A B -> C | D | E
+# B C -> D | E 
+# A C -> D | E 
+# A D -> E
+
+candidateTriples <- matrix(ncol = 3)
+
+for (i in freqItemSets) {
+  if (length(i) == 2) {
+    logical <- (freqItems %in% i) * 1
+    logical[which.max(logical)] <- 0
+    appendItems <- tail(freqItems, -which.max(logical))
+    for (j in appendItems) {
+      candidateTriples <- rbind(candidateTriples, c(i[1], i[2], j))
+    }
+  }
+}
+
+candidateTriples <- cbind(candidateTriples[-1,], 0)
+
+# 3.2) Final triples: checking if all subpairs are frequent, if so, the triple is in the negative border.
+
+for (i in 1:dim(candidateTriples)[1]) {
+  pairs <- t(combn(candidateTriples[i,1:3],2))
+  count <- 0
+  for (j in 1:dim(pairs)[1]) {
+    vec <- c(pairs[j,1], pairs[j,2])
+    for (k in freqItemSets) {
+      if (length(k) == 2) {
+        if (sum(vec %in% k) == 2) {
+          count <- count + 1
+        }
+      }
+    }
+  }
+  if (count == 3) {
+    candidateTriples[i,4] <- 1
+  }
+}
+
+negBorderTriples <- candidateTriples[(candidateTriples[,4] == 1), 1:3]
+
+# A:
+negBorderItems # F, G, H
+negBorderPairs # A-E, B-D, B-E, C-D, C-E, D-E
+negBorderTriples # A-B-C
+
+## Exercise 6.4.2
+# Apply Toivonen’s Algorithm to the data of Exercise 6.3.1,
+# with a support threshold of 4. Take as the sample the first row of baskets:
+# {1, 2, 3}, {2, 3, 4}, {3, 4, 5}, and {4, 5, 6}, i.e., one-third of the file. Our scaled-down
+# support theshold will be 1. 
+# Personal note: Original s was 4. You scale it down more than 1/3 of 4 (1.33), to reduce the risk of False-Negatives.
+# Hence you take 1.
+# 
+# a) What are the itemsets frequent in the sample?
+# b) What is the negative border?
+# c) What is the outcome of the pass through the full dataset? Are any of the
+#    itemsets in the negative border frequent in the whole?
+
+NA
+
+## !! Exercise 6.4.3
+# Suppose item i appears exactly s times in a file of n baskets,
+# where s is the support threshold. If we take a sample of n/100 baskets, and
+# lower the support threshold for the sample to s/100, what is the probability
+# that i will be found to be frequent? You may assume that both s and n are divisible by 100.
 
 NA
