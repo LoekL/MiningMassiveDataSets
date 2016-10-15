@@ -967,7 +967,7 @@ negBorderPairs <- pairs[(pairs[,3] == 1), 1:2]
 # A C -> D | E 
 # A D -> E
 
-candidateTriples <- matrix(ncol = 3)
+candidateTriples <- matrix(ncol = 3, nrow = 0)
 
 for (i in freqItemSets) {
   if (length(i) == 2) {
@@ -980,7 +980,7 @@ for (i in freqItemSets) {
   }
 }
 
-candidateTriples <- cbind(candidateTriples[-1,], 0)
+candidateTriples <- cbind(candidateTriples, 0)
 
 # 3.2) Final triples: checking if all subpairs are frequent, if so, the triple is in the negative border.
 
@@ -1012,13 +1012,112 @@ negBorderTriples # A-B-C
 ## Exercise 6.4.2
 # Apply Toivonen’s Algorithm to the data of Exercise 6.3.1,
 # with a support threshold of 4. Take as the sample the first row of baskets:
-# {1, 2, 3}, {2, 3, 4}, {3, 4, 5}, and {4, 5, 6}, i.e., one-third of the file. Our scaled-down
-# support theshold will be 1. 
-# Personal note: Original s was 4. You scale it down more than 1/3 of 4 (1.33), to reduce the risk of False-Negatives.
-# Hence you take 1.
-# 
+# {1, 2, 3}, {2, 3, 4}, {3, 4, 5}, and {4, 5, 6}, i.e., one-third of the file.
+
+sample <- list(c(1,2,3), c(2,3,4), c(3,4,5), c(4,5,6))
+
+# Our scaled-down support theshold will be 1. 
+# Personal note: Original s was 4. You scale it down more than 1/3 of 4 (1.33) to reduce the risk of False-Negatives, 
+# by taking a value that is slightly lower: 1.
+ 
 # a) What are the itemsets frequent in the sample?
+
+# A: Since our support threshold is 1, basically all basket triples are also the maximum frequent itemsets!
+
 # b) What is the negative border?
+
+# 1 - Get all frequent items, compute possible pairs -> which have occurred? The ones that have not
+# occurred are in the negative border.
+
+freqItems <- unique(unlist(sample)) # 1 2 3 4 5 6
+
+possiblePairs <- cbind(t(combn(freqItems, 2)), 0)
+
+for (i in sample) {
+  if (length(i) == 3) {
+    pairs <- t(combn(i, 2))
+    print(pairs)
+    for (j in 1:dim(pairs)[1]) {
+      a <- pairs[j,1]
+      b <- pairs[j,2]
+      possiblePairs[(possiblePairs[,1] == a & possiblePairs[,2] == b), 3] <- 1
+    }
+  }
+}
+
+negBorderPairs <- possiblePairs[(possiblePairs[,3] == 0), 1:2] # 1-4, 1-5, 1-6, 2-5, 2-6, 3-6
+
+# 2 - Take the frequent pairs, see which triples they can generate, those that did not occur are in the negative border.
+
+freqPairs <- possiblePairs[(possiblePairs[,3] == 1), 1:2] # 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6
+
+candidateGen <- function(subSets, freqItems) {
+  candidates <- matrix(ncol = (dim(subSets)[2] + 1), nrow = 0)
+  for (i in 1:dim(subSets)[1]) {
+    vec <- c(subSets[i,])
+    logical <- freqItems %in% vec * 1
+    x <- 0
+    repeat {
+      logical[which.max(logical)] <- 0
+      x <- x + 1
+      if (x == (dim(subSets)[2] - 1)) { break }
+    }
+    appendItems <- tail(freqItems, -which.max(logical))
+    for (j in appendItems) {
+      candidates <- rbind(candidates, c(vec, j))
+    }
+  }
+  candidates <- cbind(candidates, 0)
+  return(candidates)
+}  
+
+candidateTriples <- candidateGen(freqPairs, freqItems)
+
+for (i in sample) {
+  candidateTriples[(candidateTriples[,1] == i[1] & 
+                      candidateTriples[,2] == i[2] & 
+                      candidateTriples[,3] == i[3]), 4] <- 1
+}
+
+freqTriples <- candidateTriples[(candidateTriples[,4] == 1), 1:3] # 1-2-3, 2-3-4, 3-4-5, 4-5-6
+negBorderTriples <- candidateTriples[(candidateTriples[,4] == 0), 1:3] # 1-2-4, 1-2-5, 1-2-6, ...
+
+# 3 - Check if there any possible quadruples in the negative border.
+
+freqTriples <- matrix(ncol = 3, nrow = 0)
+for (i in sample) {
+  freqTriples <- rbind(freqTriples, i)
+}
+
+candidateQuadruples <- candidateGen(freqTriples, freqItems)
+
+freqItemSets <- sample
+
+for (i in 1:dim(candidateQuadruples)[1]) {
+  triples <- t(combn(candidateQuadruples[i,1:4],3))
+  count <- 0
+  for (j in 1:dim(triples)[1]) {
+    vec <- c(triples[j,])
+    for (k in freqItemSets) {
+      if (length(k) == 3) {
+        if (sum(vec %in% k) == 3) {
+          count <- count + 1
+        }
+      }
+    }
+  }
+  if (count == 4) {
+    candidateQuadruples[i,5] <- 1
+  }
+}
+
+# There are no quadruples in the negative border.
+negBorderQuadruples <- candidateQuadruples[(candidateQuadruples[,5] == 1), 1:4] # None
+
+# Therefore the negative border consists of:
+negBorderTriples
+negBorderPairs
+
 # c) What is the outcome of the pass through the full dataset? Are any of the
 #    itemsets in the negative border frequent in the whole?
 
@@ -1031,3 +1130,167 @@ NA
 # that i will be found to be frequent? You may assume that both s and n are divisible by 100.
 
 NA
+
+### Chapter 12.4 - Nearest Neighbours
+
+## Example 12.13
+
+data <- matrix(c(1,1,2,2,4,3,8,4,16,5,32,6), ncol = 2, byrow = TRUE)
+q <- 3.5
+
+# Weight decays as the square of the distance
+weight <- function(x, q) {
+  value <- 1 / (x - q)^2
+  return(value)
+}
+
+data <- cbind(data, weight(data[,1], q))
+data <- cbind(data, data[,2] * data[,3])
+sum(data[,4]) / sum(data[,3]) # 5.514039
+
+# A popular choice is to use a normal distribution
+weightBellCurve <- function(x, q, s) {
+  # s == stdev of the distribution
+  # q == acts as the mean (how far from this 'mean' are the neighbors)
+  value <- exp(1)^-((x-q)^2)/s^2
+  return(value)
+}
+
+x <- data[,1]
+s <- sd(x)
+q <- 3
+
+weightBellCurve(x, q, s)[2:4]
+
+## Exercise 12.4.2
+# Suppose we have the following training set:
+
+trainingSet <- matrix(c(1,2,1,3,4,-1,2,1,-1,4,3,1), ncol = 3, byrow = TRUE)
+
+# which is the training set used in Example 12.9. If we use nearest-neighbor
+# learning with the single nearest neighbor as the estimate of the label of a query
+# point, which query points are labeled +1?
+
+# http://flowingdata.com/2016/04/12/voronoi-diagram-and-delaunay-triangulation-in-r/
+# install.packages("deldir", dependencies=TRUE)
+library(deldir)
+
+x <- trainingSet[,1]
+y <- trainingSet[,2] 
+vtess <- deldir(x, y)
+
+plot(x, y, type="n", asp=1)
+points(x, y, pch=20, col="red", cex=0.5)
+plot(vtess, wlines="tess", wpoints="none", number=FALSE, add=TRUE, lty=1)
+text(trainingSet[,1], trainingSet[,2], trainingSet[,3], cex=0.6, pos=1, col="red")
+
+# A: View plot for decision boundaries.
+
+## Exercise 12.4.3
+# Consider the one-dimensional training set
+
+data <- matrix(c(1,1,2,2,4,3,8,4,16,5,32,6), ncol = 2, byrow = TRUE)
+
+# Describe the function f(q), the label that is returned in response to the query
+# q, when the interpolation used is:
+
+# Rule 1 - Nearest Neighbor.
+# a) The label of the nearest neighbor:
+
+nearestNeighbor1 <- function(query, data) {
+  vec <- vector(length = dim(data)[1])
+  for (i in 1:dim(data)[1]) {
+    distance <- abs(data[i,1] - query)
+    vec[i] <- distance
+  }
+  index <- which.min(vec)
+  return(data[index,2])
+}
+
+nearestNeighbor1(3, data)
+
+# Rule 2 - Average of Two Nearest Neighbors.
+# b) The average of the labels of the two nearest neighbors:
+
+nearestNeighbor2 <- function(query, data, k) {
+  vec <- vector(length = dim(data)[1])
+  for (i in 1:dim(data)[1]) {
+    distance <- abs(data[i,1] - query)
+    vec[i] <- distance
+  }
+  indices <- vector(length = k)
+  for (j in 1:k) {
+    indices[j] <- which.min(vec)
+    vec <- vec[-indices[j]]
+  }
+  labelsWeighted <- (data[indices,2] * 1/k) # weighted by 1/k
+  return(sum(labelsWeighted))
+}
+
+nearestNeighbor2(3, data, 2)
+
+# Rule 3 - Weighted Average of the Two Nearest Neighbors.
+# c) The average, weighted by distance, of the two nearest neighbors:
+
+nearestNeighbor3 <- function(query, data, k) {
+  vec <- vector(length = dim(data)[1])
+  for (i in 1:dim(data)[1]) {
+    distance <- abs(data[i,1] - query)
+    vec[i] <- distance
+  }
+  indices <- vector(length = k)
+  weights <- vector(length = k)
+  for (j in 1:k) {
+    indices[j] <- which.min(vec)
+    weights[j] <- 1 / vec[indices[j]]
+    vec <- vec[-indices[j]]
+  }
+  if (sum(weights == Inf) > 0) {
+    label <- data[indices[weights == Inf], 2]
+    return(label)
+  } else {
+    labelsWeighted <- (data[indices,2] * weights)
+    return(sum(labelsWeighted) / sum(weights))
+  }
+}
+
+nearestNeighbor3(32, data, 2)
+
+# Note: 
+# When following the formula, when there is an exact match, distance becomes 1 / 0 --> Inf, which results in NaN; 
+# theoretically its weight is infinite, hence it dominates and should reflect this label, which is what you want.
+
+# Rule 4 - Average of Three Nearest Neighbors.
+# d) The (unweighted) average of the three nearest neighbors:
+
+nearestNeighbor2(3, data, 3)
+
+## ! Exercise 12.4.4
+# Apply the kernel function of Example 12.13 to the data of
+# Exercise 12.4.3. For queries q in the range 2 < q < 4, what is the label of q?
+
+q <- seq(2, 4, 0.1) # Technically 2 < q < 4 means q == 3
+for (i in q) {
+  index <- which.max(weight(data[,1], i))
+  print(paste0('q: ', as.character(i), ' | Label: ', as.character(data[index,2])))
+}
+
+# A: From 2.1-2.9 it is 2, at 3 it is tied between 2 & 3 and from 3.1-3.9 it is 3.
+
+## Exercise 12.4.5
+# What is the function that estimates the label of query points
+# using the data of Example 12.12 and the average of the four nearest neighbors?
+
+data2 <- matrix(c(1,1,2,2,3,4,4,8,5,4,6,2,7,1), ncol = 2, byrow = TRUE)
+q <- 3
+k <- 4
+nearestNeighbor2(q, data2, 4) # 2.25
+
+# !! Exercise 12.4.6
+# Simple weighting functions such as those in Example 12.12
+# need not define a continuous function. We can see that the constructed functions
+# in Fig. 12.22 and Fig. 12.23(b) are not continuous, but Fig. 12.23(a) is. Does the
+# weighted average of two nearest neighbors always give a continuous function?
+
+NA
+
