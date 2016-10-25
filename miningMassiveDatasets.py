@@ -2250,15 +2250,6 @@ l(F) = ∑ (log(1 - exp(-Fu * Fv^T))) - ∑ (Fu * Fv^T)
 # -> Or you have a network, and want to fit the model (you create the Factor Matrix F)!
 #    + For this one, you maximize l(F) using gradient ascent.
 
-# Todo:
-# - Generate some network in node matrix.
-# - Use gradient ascent to generate F (nodes / communities)
-# - Use F to generate node matrix --> if similar, success!
-# With AGM you have Pc, however with BiGCLAM no more? Replaced with continuousness of degree of affiliation with C's!
-# - Therefore the problem is now different... ANyhow re-do video 3 and code it up.
-
-(u,v) ∈ E --> this must be stored in the node graph?
-
 
 
 
