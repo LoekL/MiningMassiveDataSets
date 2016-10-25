@@ -975,7 +975,7 @@ for (i in freqItemSets) {
     logical[which.max(logical)] <- 0
     appendItems <- tail(freqItems, -which.max(logical))
     for (j in appendItems) {
-      candidateTriples <- rbind(candidateTriples, c(i[1], i[2], j))
+      candidateTriples <- rbind(candidateTriples, c(i, j))
     }
   }
 }
@@ -988,9 +988,10 @@ for (i in 1:dim(candidateTriples)[1]) {
   pairs <- t(combn(candidateTriples[i,1:3],2))
   count <- 0
   for (j in 1:dim(pairs)[1]) {
-    vec <- c(pairs[j,1], pairs[j,2])
+    vec <- pairs[j,]
     for (k in freqItemSets) {
       if (length(k) == 2) {
+        # or: all(vec %in% k)
         if (sum(vec %in% k) == 2) {
           count <- count + 1
         }
@@ -1026,7 +1027,7 @@ sample <- list(c(1,2,3), c(2,3,4), c(3,4,5), c(4,5,6))
 
 # b) What is the negative border?
 
-# 1 - Get all frequent items, compute possible pairs -> which have occurred? The ones that have not
+# b1) - Get all frequent items, compute possible pairs -> which have occurred? The ones that have not
 # occurred are in the negative border.
 
 freqItems <- unique(unlist(sample)) # 1 2 3 4 5 6
@@ -1036,7 +1037,6 @@ possiblePairs <- cbind(t(combn(freqItems, 2)), 0)
 for (i in sample) {
   if (length(i) == 3) {
     pairs <- t(combn(i, 2))
-    print(pairs)
     for (j in 1:dim(pairs)[1]) {
       a <- pairs[j,1]
       b <- pairs[j,2]
@@ -1047,7 +1047,7 @@ for (i in sample) {
 
 negBorderPairs <- possiblePairs[(possiblePairs[,3] == 0), 1:2] # 1-4, 1-5, 1-6, 2-5, 2-6, 3-6
 
-# 2 - Take the frequent pairs, see which triples they can generate, those that did not occur are in the negative border.
+# b2) - Take the frequent pairs, see which triples they can generate, those that did not occur are in the negative border.
 
 freqPairs <- possiblePairs[(possiblePairs[,3] == 1), 1:2] # 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6
 
@@ -1067,8 +1067,7 @@ candidateGen <- function(subSets, freqItems) {
       candidates <- rbind(candidates, c(vec, j))
     }
   }
-  candidates <- cbind(candidates, 0)
-  return(candidates)
+  return(cbind(candidates, 0))
 }  
 
 candidateTriples <- candidateGen(freqPairs, freqItems)
@@ -1082,7 +1081,7 @@ for (i in sample) {
 freqTriples <- candidateTriples[(candidateTriples[,4] == 1), 1:3] # 1-2-3, 2-3-4, 3-4-5, 4-5-6
 negBorderTriples <- candidateTriples[(candidateTriples[,4] == 0), 1:3] # 1-2-4, 1-2-5, 1-2-6, ...
 
-# 3 - Check if there any possible quadruples in the negative border.
+# b3) - Check if there any possible quadruples in the negative border.
 
 freqTriples <- matrix(ncol = 3, nrow = 0)
 for (i in sample) {
@@ -1097,7 +1096,7 @@ for (i in 1:dim(candidateQuadruples)[1]) {
   triples <- t(combn(candidateQuadruples[i,1:4],3))
   count <- 0
   for (j in 1:dim(triples)[1]) {
-    vec <- c(triples[j,])
+    vec <- triples[j,]
     for (k in freqItemSets) {
       if (length(k) == 3) {
         if (sum(vec %in% k) == 3) {
@@ -1114,14 +1113,56 @@ for (i in 1:dim(candidateQuadruples)[1]) {
 # There are no quadruples in the negative border.
 negBorderQuadruples <- candidateQuadruples[(candidateQuadruples[,5] == 1), 1:4] # None
 
-# Therefore the negative border consists of:
-negBorderTriples
-negBorderPairs
-
 # c) What is the outcome of the pass through the full dataset? Are any of the
 #    itemsets in the negative border frequent in the whole?
 
-NA
+negBorderTriples <- cbind(0, negBorderTriples)
+negBorderPairs <- cbind(0, negBorderPairs)
+
+for (basket in baskets) {
+  
+  for (row in 1:dim(negBorderTriples)[1]) {
+    if (all(negBorderTriples[row, -1] %in% basket)) {
+      negBorderTriples[row, 1] <- negBorderTriples[row, 1] + 1
+    }
+  }
+  
+  for (row in 1:dim(negBorderPairs)[1]) {
+    if (all(negBorderPairs[row, -1] %in% basket)) {
+      negBorderPairs[row, 1] <- negBorderPairs[row, 1] + 1
+    }
+  }
+}
+
+s <- 4
+# No items in the negative border were frequent in the whole
+negBorderTriples[(negBorderTriples[,1] >= s), -1]
+negBorderPairs[(negBorderPairs[,1] >= s), -1]
+
+# Are the sample frequent items also frequent in the whole?
+itemCounts <- table(unlist(baskets))
+freqItems <- itemCounts[itemCounts >= s] # all items are frequent
+
+freqPairs <- cbind(0, freqPairs)
+freqTriples <- cbind(0, freqTriples)
+
+for (basket in baskets) {
+  
+  for (row in 1:dim(freqPairs)[1]) {
+    if (all(freqPairs[row, -1] %in% basket)) {
+      freqPairs[row, 1] <- freqPairs[row, 1] + 1
+    }
+  }
+  
+  for (row in 1:dim(freqTriples)[1]) {
+    if (all(freqTriples[row, -1] %in% basket)) {
+      freqTriples[row, 1] <- freqTriples[row, 1] + 1
+    }
+  }
+}
+
+freqPairsWhole <- freqPairs[(freqPairs[,1] >= s), 2:3] # 2-4, 3-4, 3-5
+freqTriplesWhole <- freqTriples[(freqTriples[,1] >= s), 2:4] # None
 
 ## !! Exercise 6.4.3
 # Suppose item i appears exactly s times in a file of n baskets,
@@ -1134,7 +1175,6 @@ NA
 ### Chapter 12.4 - Nearest Neighbours
 
 ## Example 12.13
-
 data <- matrix(c(1,1,2,2,4,3,8,4,16,5,32,6), ncol = 2, byrow = TRUE)
 q <- 3.5
 
@@ -1294,3 +1334,249 @@ nearestNeighbor2(q, data2, 4) # 2.25
 
 NA
 
+### Chapter 10
+
+## Video Lecture Example - From AGM to BigCLAM
+
+Fu <- c(0,1.2,0,0.2)
+Fv <- c(0.5,0,0,0.8)
+Fw <- c(0,1.8,1,0)
+
+# %*% Generates the dot-product between 2 vectors
+Puv <- 1 - exp(-Fu %*% Fv) # 0.14
+Puw <- 1 - exp(-Fu %*% Fw) # 0.88
+Pvw <- 1 - exp(-Fv %*% Fw) # 0
+
+## 10.5.2) MLE - Maximum Likelihood Estimation
+
+# Consider a graph with 15 nodes and 23 edges. 
+
+n <- 15
+e <- 23
+pairs <- (n * (n - 1)) / 2
+
+# Each edge is independently chosen with probability p.
+# Then, the probability of generating exactly this graph is: 
+prob <- function(p, e, pairs) {
+  return(p^e*(1-p)^(pairs - e))
+} 
+# Or: p^23*(1 - p)^82
+# But we do not know what p is.
+
+# However, we do know that this function has a maximum, a value for p that returns the maximum value.
+# We can determine this by taking its derivate, and setting this to 0.
+
+# Original:
+# p^23 * (1 - p)^82
+# Derivate:
+# 23*p^22*(1-p)^82 - 82p^23(1-p)81 = 0
+# Derivative re-written:
+# p^22(1 - p)^81 * (23(1 - p) - 82p) = 0
+# The only way the right side = 0 if if p is 0 or 1, or if (23(1 - p) - 82p) is 0.
+
+# When p is 0 or 1, the value of the likelihood function p^23*(1 − p)^82 is
+# minimized, not maximized: 
+test <- function(p) {
+  return(p^22*(1-p)^81 * (23*(1-p)-82*p))
+}
+test(1) # 0
+test(0) # 0
+
+# So it must be the last factor that is 0: | Note: Why not p^22*(1-p)^81 = 0?
+# 23 − 23p − 82p = 0
+
+p <- 23/105 # should come as no surprise
+
+# This is the value of p that maximizes the occurence of the graph we 
+# found, with e edges and n nodes.
+prob(p, e, pairs) # 1.065614e-24
+# Any other value for p will return a smaller probability.
+q <- 24/105
+r <- 22/105
+prob(p, e, pairs) > prob(q, e, pairs) # TRUE
+prob(p, e, pairs) > prob(r, e, pairs) # TRUE
+
+### Example - AGM
+## Model B(V, C, M, {Pc})
+# V - Nodes 
+V <- 1:20
+
+# C - Communities 
+C <- list()
+
+# Pc - probability of connect per community
+Pc <- c(0.2, 0.4, 0.6)
+
+x <- 0
+for (i in Pc) {
+  x <- x + 1
+  size <- i * length(V)
+  C[[x]] <- sample(V, size, replace = FALSE)
+}
+
+# M - Memberships
+M <- cbind(0, t(combn(V, 2)))
+
+# e - Default probability (no shared communities)
+e <- 0.001
+
+# I - C as List Implementation:
+
+for (i in 1:dim(M)[1]) { 
+  pair <- M[i,-1]
+  sharedC <- rep(0, length(C))
+  count <- 1
+  for (j in C) {
+    if (all(pair %in% j) == TRUE) {
+      sharedC[count] <- 1
+      count <- count + 1
+    } else {
+      count <- count + 1
+    }
+  }
+  if (sum(sharedC) == 0) {
+    M[i,1] <- e
+  } else {
+    M[i,1] <- 1 - prod((1 - Pc)[sharedC == 1])
+  }
+}
+
+# II - C as Matrix Implementation:
+
+CM <- matrix(ncol = 0, nrow = 20)
+for (i in Pc) {
+  CM <- cbind(CM, rbinom(20,1, prob = i))
+}
+CM <- cbind(V, CM)
+
+edges <- rep(0, length = ((length(V) * (length(V)-1)) / 2))
+
+for (i in 1:dim(CM)[1]) {
+  memb <- CM[i,2:4]
+  if (i == max(V)) { break }
+  for (j in (i+1):dim(CM)[1]) {
+    index <- (i - 1) * (length(V) - (i/2)) + j - i # Triangular Matrix Approach
+    logical <- CM[i,2:4] > 0 & CM[j,2:4] > 0
+    if (sum(logical) == 0) {
+      edges[index] <- e
+    } else {
+      edges[index] <- 1 - prod((1 - Pc)[logical])
+    }
+    # print(paste0(as.character(i),'-',as.character(j)))
+  }
+}
+
+## From AGM to BigCLAM (relaxed; continuous membership values instead of binary)
+
+# Generate the Community Membership Strength Matrix
+CMR <- matrix(ncol = 0, nrow = 20)
+for (i in Pc) { 
+  vec <- round(runif(length(V), min = 0, max = 3), 2)
+  vec[rbinom(length(V), 1, prob = 0.5) == 1] <- 0
+  CMR <- cbind(CMR, vec)
+}
+CMR <- cbind(V, CMR)
+
+edges2 <- rep(0, length = ((length(V) * (length(V)-1)) / 2))
+
+# Generate Probability of Connections
+for (i in 1:dim(CMR)[1]) {
+  comStrI <- CMR[i,2:4]
+  if (i == length(V)) { break }
+  for (j in (i+1):dim(CMR)[1]) {
+    index <- (i - 1) * (length(V) - (i/2)) + j - i # Triangular Matrix Approach
+    comStrJ <- CMR[j,2:4]
+    probConn <- 1 - exp(-comStrI %*% comStrJ) # PA(u,v) = 1 - exp(-FuA * FvA)
+    if (probConn == 0) {
+      edges2[index] <- e
+    } else {
+      edges2[index] <- probConn
+    }
+    # print(paste0(as.character(i),'-',as.character(j)))
+  }
+}
+
+# BigCLAM: How to find F 
+# Task: given a network G(V,E), estimate F. 
+# Find F that maximizes the likelihood that F generated G. 
+
+V <- 1:20
+E <- matrix(rbinom(n = 400, size = 1, prob = 0.3), ncol = 20) + diag(20)
+E[E > 1] <- 1
+
+# Random Initialisation of F
+set.seed(1)
+MF <- matrix(round(runif(60, max = 1, min = 0), 2), ncol = 3) 
+MF <- cbind(V, MF)
+
+eta <- 0.001
+
+# Applying Gradient Ascent to Find the Likeliest Matrix F that Generated E
+repeat {
+  MFO <- MF
+  MFI <- MF
+  MFColSums <- colSums(MF[,-1])
+  for (i in 1:dim(MF)[1]) {
+    a <- MF[i, 2:4]
+    logical <- E[i,]
+    logical[i] <- 0
+    neighborNodes <- matrix(MF[(logical == 1), 2:4], ncol = 3)
+    neighborGradient <- vector(length = 3)
+    for (j in 1:dim(neighborNodes)[1]) {
+      b <- neighborNodes[j,]
+      gradient <- b * (exp(-a %*% b) / (1 - exp(-a %*% b)))
+      neighborGradient <- neighborGradient + gradient
+    }
+    nonNeighborGradient <- MFColSums - a - colSums(neighborNodes)
+    finalGradient <- neighborGradient - nonNeighborGradient
+    vec <- MF[i, 2:4] + (eta * finalGradient)
+    vec[vec < 0] <- 0.0
+    MFI[i, 2:4] <- vec
+  }
+  MF <- MFI
+  if (sum(MFO[,2:4] - MF[,2:4]) < 0.01) { 
+    writeLines(paste0("Convergence! \n Iterations needed: ", as.character(x), "\n F Delta's of the final two iterations: "))
+    print(cbind(V,round(MF[,2:4] - MFO[,2:4], 3)))
+    break 
+  }
+}
+
+edges3 <- rep(0, length = ((length(V) * (length(V)-1)) / 2))
+
+# Generate Probability of Connections
+for (i in 1:dim(MF)[1]) {
+  comStrI <- MF[i,2:4]
+  if (i == length(V)) { break }
+  for (j in (i+1):dim(MF)[1]) {
+    index <- (i - 1) * (length(V) - (i/2)) + j - i # Triangular Matrix Approach
+    comStrJ <- MF[j,2:4]
+    probConn <- 1 - exp(-comStrI %*% comStrJ) # PA(u,v) = 1 - exp(-FuA * FvA)
+    if (probConn == 0) {
+      edges3[index] <- e
+    } else {
+      edges3[index] <- probConn
+    }
+    # print(paste0(as.character(i),'-',as.character(j)))
+  }
+}
+
+# Transforming Triangular Array into Node Matrix
+nodeMatrixResult <- matrix(rep(0, 400), ncol = 20, nrow = 20)
+for (row in 1:dim(nodeMatrixResult)[1]) {
+  for (column in 1:dim(nodeMatrixResult)[2]) {
+    if (row == column) {
+      nodeMatrixResult[row, column] <- 1.000
+    } else {
+      vec <- sort(c(row, column))
+      i <- vec[1]
+      j <- vec[2]
+      index <- (i - 1) * (length(V) - (i/2)) + j - i
+      value <- round(edges3[index], 3)
+      nodeMatrixResult[row, column] <- value
+    }
+  }
+}
+
+# Compare: 
+E[1:10,1:10]
+nodeMatrixResult[1:10,1:10]

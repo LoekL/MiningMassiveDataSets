@@ -2127,3 +2127,139 @@ FOR (each basket) {
 - Let T be a smallest subset of S that is not frequent in the sample.
 - T is frequent in the whole (S is frequent + monotonicity).
 - T is in the negative border (else not 'smallest').
+
+-- Week 3 --
+
+## 4 - 1 - Community Detection in Graphs- Motivation (5-44).mp4
+
+[Community Detection in GraΠphs]
+
+- Facebook friend graph segmentation
+
+[Overlapping Communities]
+
+- Non-overlapping vs. overlapping communities
+
+[Communities as Tiles!]
+
+- What is the structure of community overlaps:
+  + Edge density in the overlaps is higher!
+
+## 4 - 2 - The Affiliation Graph Model (10-04).mp4
+
+[The Affiliation Graph Model]
+
+[Plan of Attack]
+
+1 - Given a model, we generate the network: Generative model for network --> network
+2 - Given a network, find the 'best' model: network --> Generative model for network
+
+[Model of networks]
+
+- Goal: Define a model that can generate networks (1)
+  + The model will have a set of 'parameters' that we will later want
+    to estimate (and detect communities)
+- Q: Given a set of nodes, how do communities 'generate' edges of the network?
+
+[Community-Affiliation Graph]
+
+- AGM: Affiliation Graph Model: a generative model B(V, C, M, {pc}) for graphs:
+  + Set of nodes V, set of communities C, set of memberships M
+  + Each community c has a single probability pc (likelihood its member nodes connect with one another)
+  + Later we fit the model to networks to detect communities
+
+[AGM: Generative Process]
+
+- AGM generates the links: For each
+  + For each pair of nodes in community A, we connect them with prob. pa
+  + The overall edge probability is:
+    # Probability that node u and v are connected:
+    * P(u,v) = 1 - Π(1 - p*c)
+              c ∈ Mu ∩ Mv
+      - I.e. the product over all the communities they have in common.
+      - Mu .. set of communities node u belongs to.
+      - Think of this as an 'OR' function: if at least 1 community says 'YES' we create an edge
+      - ∈ == element of!
+        + x ∈ A ∩ B if and only if:
+          * x ∈ A and
+          * x ∈ B.
+      - The higher the number of shared communities, the higher the probability an
+        edge will be created between the two nodes.
+      - If u & v share no communities: P(u,v) = ε # some small probability
+
+[AGM: Flexibility]
+
+- AGM can express a variety of community structures:
+  + Non-overlapping
+  + Overlapping
+  + Nested
+    * Al we need is the underlying structure (community sets) and AGM can generate the network.
+
+## 4 - 3 - From AGM to BIGCLAM (8-48).mp4
+
+[From AGM to BigCLAM]
+
+- Relaxation: Memberships have strengths
+  + FuA: The membership strength of node u to community A
+    * FuA = 0: no membership # value always non-negative
+  + Each community A links nodes independently:
+    * PA(u,v) = 1 - exp(-FuA * FvA)
+
+[Factor Matrix F]
+
+- Community membership strength matrix F
+  + Rows: Nodes
+  + Columns: Communities
+- Basically each row is a vector of community membership strenghts for a certain node.
+- PA(u,v) = 1 - exp(-FuA * FvA)
+  + Probability of connection is proportional to the product of strengths.
+    * Notice: If one node does not belong to the community (FuC = 0) then P(u,v) = 0.
+- Prob. that at least one common community C links the nodes:
+  + P(u,v) = 1 - Πc(1 - Pc(u,v))
+    * 1 - Prob. they connect == prob that they do not connect
+       --> product over all communities == probability that they do not connect in any of the communities
+       --> 1 - this probability == probability they connect in at least one community.
+    * Where Pc == PA(u,v) = 1 - exp(-FuA * FvA)
+
+- Community A links nodes u, v independently:
+  + PA(u,v) = exp(-FuA * FvA)
+- Then prob. at least one common c links them:
+  + P(u,v) = 1 - Πc(1 - Pc(u,v))
+           = 1 - exp(-∑c (FuC * FvC))
+           = 1 - exp(-Fu * Fv^T) # we replace the ∑ with the dot-product of vectors Fu & Fv
+
+## 4 - 4 - Solving the BIGCLAM (9-19).mp4
+
+[Solving the BigCLAM]
+
+[BiGCLAM: How to find F] # affiliation matrix F
+
+- Task: Given a network G(V,E), estimate F # G == network, V == Nodes, E == Network as found
+  + Find F that maximizes the likelihood:
+    * arg maxF Π p(u,v) Π (1 - p(u,v))
+            (u,v) ∈ E   (u,v) ∉ E
+      - Where P(u,v) = 1 - exp(-Fu * Fv^T)
+      - Many times we take the logarithm of the likelihood,
+        and call it log-likelihood: l(F) = log P(G|F) # Probability of a Graph given F
+- Goal: Find F that maximizes l(F):
+
+l(F) = ∑ (log(1 - exp(-Fu * Fv^T))) - ∑ (Fu * Fv^T)
+ (u,v) ∈ E                        (u,v) ∉ E
+
+# -> Either you have a model (the Factor Matrix F), and you can generate the network.
+# -> Or you have a network, and want to fit the model (you create the Factor Matrix F)!
+#    + For this one, you maximize l(F) using gradient ascent.
+
+# Todo:
+# - Generate some network in node matrix.
+# - Use gradient ascent to generate F (nodes / communities)
+# - Use F to generate node matrix --> if similar, success!
+# With AGM you have Pc, however with BiGCLAM no more? Replaced with continuousness of degree of affiliation with C's!
+# - Therefore the problem is now different... ANyhow re-do video 3 and code it up.
+
+(u,v) ∈ E --> this must be stored in the node graph?
+
+
+
+
+
